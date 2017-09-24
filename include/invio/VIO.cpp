@@ -24,9 +24,9 @@ VIO::VIO() {
 	image_transport::CameraSubscriber bottom_cam_sub = it.subscribeCamera(
 			CAMERA_TOPIC, 2, &VIO::camera_callback, this);
 
-if(PUBLISH_INSIGHT){
-	this->insight_pub = nh.advertise<sensor_msgs::Image>(INSIGHT_TOPIC, 1);
-}
+	if(PUBLISH_INSIGHT){
+		this->insight_pub = nh.advertise<sensor_msgs::Image>(INSIGHT_TOPIC, 1);
+	}
 
 	this->odom_pub = nh.advertise<nav_msgs::Odometry>(ODOM_TOPIC, 1);
 
@@ -151,13 +151,13 @@ void VIO::addFrame(cv::Mat img, cv::Mat_<float> k, ros::Time t) {
 		this->replenishFeatures((this->frame_buffer.front())); // try to get more features if needed
 	}
 
-if( PUBLISH_INSIGHT)
-{
-	if(this->frame_buffer.size() > 0)
+	if( PUBLISH_INSIGHT)
 	{
-		this->publishInsight(this->frame_buffer.front());
+		if(this->frame_buffer.size() > 0)
+		{
+			this->publishInsight(this->frame_buffer.front());
+		}
 	}
-}
 
 	//publish the mature 3d points
 	this->publishPoints(this->frame_buffer.front());
@@ -190,9 +190,9 @@ void VIO::predictPose(Frame& new_frame, Frame& old_frame)
 }
 
 void VIO::updateFeatures(Frame& last_f, Frame& new_f) {
-if(ANALYZE_RUNTIME){
+	if(ANALYZE_RUNTIME){
 		this->startTimer();
-}
+	}
 
 	std::vector<cv::Point2f> oldPoints = this->getPixels2fInOrder(last_f);
 
@@ -245,18 +245,18 @@ if(ANALYZE_RUNTIME){
 
 	ROS_DEBUG_STREAM("VO LOST " << lostFeatures << "FEATURES");
 
-if (ANALYZE_RUNTIME){
+	if (ANALYZE_RUNTIME){
 		this->stopTimer("tracking");
-}
+	}
 
 }
 
 
 
 void VIO::keyFrameUpdate(){
-if(ANALYZE_RUNTIME){
+	if(ANALYZE_RUNTIME){
 		this->startTimer();
-}
+	}
 	Frame* kf; // get the key frame pointer
 
 	// find the key frame
@@ -285,17 +285,17 @@ if(ANALYZE_RUNTIME){
 		this->depth_solver.updatePointDepths(this->frame_buffer.front());
 	}
 
-if(ANALYZE_RUNTIME){
+	if(ANALYZE_RUNTIME){
 		this->stopTimer("keyframeUpdate");
-}
+	}
 
 }
 
 bool VIO::optimizePose(Frame& f, double& ppe)
 {
-if(ANALYZE_RUNTIME){
+	if(ANALYZE_RUNTIME){
 		this->startTimer();
-}
+	}
 	bool pass = false;
 
 	ROS_DEBUG_STREAM("found " << f.getMatureCount() << " mature pixels");
@@ -317,12 +317,15 @@ if(ANALYZE_RUNTIME){
 		ROS_ERROR("pauvsi_vio: ran out of valid features lost track of pose. try lowering the FAST feature threshold.");
 		pass = false;
 	}
-if(ANALYZE_RUNTIME){
+	if(ANALYZE_RUNTIME){
 		this->stopTimer("pose optimization");
-}
+	}
 	return pass;
 }
 
+/*
+ * this new moba function finds the top n features to perform motion estimation to reduce drift and therefore increase the depth estimation accuracy
+ */
 bool VIO::MOBA(Frame& f, double& perPixelError, bool useImmature)
 {
 	double chi2(0.0);
@@ -344,7 +347,7 @@ bool VIO::MOBA(Frame& f, double& perPixelError, bool useImmature)
 		{
 			if(useImmature || !e.getPoint()->isImmature())
 			{
-				ROS_DEBUG_STREAM("using position for moba: " << e.getPoint()->getWorldCoordinate());
+				//ROS_DEBUG_STREAM("using position for moba: " << e.getPoint()->getWorldCoordinate());
 
 				edges.push_back(&e);
 			}
@@ -361,9 +364,25 @@ bool VIO::MOBA(Frame& f, double& perPixelError, bool useImmature)
 
 	ROS_DEBUG_STREAM("found " << edgeCount << " valid points for MOBA");
 
+	//now we must sort the edges by their depth variance so we can use the top n for motion estimation
+
+	struct {
+		bool operator()(Feature* a, Feature* b) const
+		{
+			return a->getPoint()->getVariance() < a->getPoint()->getVariance();
+		}
+	} customLess;
+
+	// perform a partial sort
+	std::partial_sort(edges.begin(), edges.begin() + NUM_MOBA_FEATURES, edges.end(), customLess);
+
+	edgeCount = std::min(NUM_MOBA_FEATURES, (int)edges.size());
+
 	//reserve the space for all chi2 of edges
 	chi2_vec_init.reserve(edgeCount);
 	chi2_vec_final.reserve(edgeCount);
+
+	ROS_DEBUG_STREAM("using top " << edgeCount << " edges for moba");
 
 	//run the motion only bundle adjustment
 	for(size_t iter = 0; iter < MOBA_MAX_ITERATIONS; iter++)
@@ -374,7 +393,7 @@ bool VIO::MOBA(Frame& f, double& perPixelError, bool useImmature)
 		double new_chi2(0.0);
 
 		// compute residual
-		for(auto it=edges.begin(); it!=edges.end(); ++it)
+		for(auto it=edges.begin(); it!=edges.begin()+(edgeCount+1); ++it)
 		{
 			Matrix26d J;
 			Eigen::Vector3d xyz_f(currentGuess * (*it)->getPoint()->getWorldCoordinate());
@@ -424,9 +443,9 @@ bool VIO::MOBA(Frame& f, double& perPixelError, bool useImmature)
  * get more features after updating the pose
  */
 void VIO::replenishFeatures(Frame& f) {
-if(ANALYZE_RUNTIME){
+	if(ANALYZE_RUNTIME){
 		this->startTimer();
-}
+	}
 	//add more features if needed
 	cv::Mat img;
 	if (FAST_BLUR_SIGMA != 0.0) {
@@ -527,9 +546,9 @@ if(ANALYZE_RUNTIME){
 
 		}
 	}
-if(ANALYZE_RUNTIME){
+	if(ANALYZE_RUNTIME){
 		this->stopTimer("feature extraction");
-}
+	}
 }
 
 void VIO::tf2rvecAndtvec(tf::Transform tf, cv::Mat& tvec, cv::Mat& rvec) {
@@ -735,7 +754,7 @@ void VIO::publishPoints(Frame& f)
 {
 
 	if(ANALYZE_RUNTIME){
-			this->startTimer();
+		this->startTimer();
 	}
 	sensor_msgs::PointCloud msg;
 
@@ -772,7 +791,7 @@ void VIO::publishPoints(Frame& f)
 	this->points_pub.publish(msg);
 
 	if(ANALYZE_RUNTIME){
-			this->stopTimer("point publish");
+		this->stopTimer("point publish");
 	}
 }
 
@@ -820,6 +839,6 @@ void VIO::parseROSParams()
 	ros::param::param<bool>("~use_imu", USE_IMU, D_USE_IMU);
 	ros::param::param<int>("~min_variance_box_size", MIN_VARIANCE_SIZE, D_MIN_VARIANCE_SIZE);
 	ros::param::param<int>("~max_variance_box_size", MAX_VARIANCE_SIZE, D_MAX_VARIANCE_SIZE);
-
+	ros::param::param<int>("~num_moba_features", NUM_MOBA_FEATURES, D_NUM_MOBA_FEATURES);
 
 }

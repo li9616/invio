@@ -1,7 +1,10 @@
-min_new_feature_dist: 5
+min_new_feature_dist: 10
 num_features: 300
-keyframe_translation_ratio: 0.04
+num_moba_features: 70
+keyframe_translation_ratio: 0.1
 default_point_depth: 0.5
+default_point_starting_error: 100
+max_range_per_depth: 0.1
 inverse_image_scale: 2
 kill_box_width: 300
 kill_box_height: 210

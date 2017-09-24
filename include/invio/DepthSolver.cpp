@@ -28,7 +28,7 @@ void DepthSolver::updatePointDepths(Frame& f)
 
 		if(range_per_depth > MAX_RANGE_PER_DEPTH)
 		{
-			ROS_INFO_STREAM("deleting point to high range per depth: " << range_per_depth);
+			ROS_DEBUG_STREAM("deleting point to high range per depth: " << range_per_depth);
 			e.obsolete = true; // flag this point for removal it is likely an outlier or slipping or occluded
 		}
 	}
@@ -57,7 +57,7 @@ bool DepthSolver::solveAndUpdatePointDepth(Point* pt, Sophus::SE3d cf_2_rf, Eige
 
 	if(AtA.determinant() < MINIMUM_DEPTH_DETERMINANT)
 	{
-		ROS_INFO("determinant too low");
+		ROS_DEBUG("determinant too low");
 	    return false;
 	}
 
@@ -81,9 +81,9 @@ bool DepthSolver::solveAndUpdatePointDepth(Point* pt, Sophus::SE3d cf_2_rf, Eige
 
 	double sine_theta_d_t = std::max(d.cross(t).norm() / (d_norm*t_norm), DBL_MIN);
 
-	double variance = d_norm/(t_norm*sine_theta_d_t+DBL_MIN);
+	double variance = d_norm/(t_norm*sine_theta_d_t*sine_theta_d_t+DBL_MIN);
 
-	ROS_INFO_STREAM("updating point with depth: " << depth << " and variance: " << variance);
+	ROS_DEBUG_STREAM("updating point with depth: " << depth << " and variance: " << variance);
 
 	pt->updateDepth(depth, variance);
 	

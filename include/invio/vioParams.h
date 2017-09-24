@@ -42,6 +42,9 @@
 // the desired number of features more = robust...er (and slower)
 #define D_NUM_FEATURES 100
 
+// the number of features to use in motion estimation
+#define D_NUM_MOBA_FEATURES 10
+
 // the amount of points needed to start pauvsi vio odometry
 #define D_START_FEATURE_COUNT 20
 
@@ -147,6 +150,9 @@ double MIN_NEW_FEATURE_DIST;
 
 // the desired number of features more = robust...er (and slower)
 int NUM_FEATURES;
+
+// the number of features to use for motion estimation
+int NUM_MOBA_FEATURES;
 
 // the amount of points needed to start pauvsi vio odometry
 int START_FEATURE_COUNT;
