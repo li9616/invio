@@ -373,20 +373,24 @@ bool VIO::MOBA(Frame& f, double& perPixelError, bool useImmature)
 		A.setZero();
 		double new_chi2(0.0);
 
+		Eigen::Matrix3d R = currentGuess.rotationMatrix(); // compute the rotation matrix for this iteration
+
 		// compute residual
 		for(auto it=edges.begin(); it!=edges.end(); ++it)
 		{
 			Matrix26d J;
-			Eigen::Vector3d xyz_f(currentGuess * (*it)->getPoint()->getWorldCoordinate());
+			Eigen::Vector3d xyz_f(R * (*it)->getPoint()->getWorldCoordinate() + currentGuess.translation());
 			Frame::jacobian_xyz2uv(xyz_f, J);
 			Eigen::Vector2d e = (*it)->getMetricPixel() - Point::toMetricPixel(xyz_f);
 
 
+			double weight = (1/(*it)->getPoint()->getVariance()); // weight
+
 			ROS_DEBUG_STREAM("edge chi: " << e.squaredNorm());
 
-			A.noalias() += J.transpose()*J;
-			b.noalias() -= J.transpose()*e;
-			new_chi2 += e.squaredNorm();
+			A.noalias() += J.transpose()*J*weight;
+			b.noalias() -= J.transpose()*e*weight;
+			new_chi2 += e.squaredNorm()*weight;
 		}
 
 		// solve linear system
@@ -797,7 +801,7 @@ void VIO::parseROSParams()
 	ros::param::param<int>("~minimum_keyframe_count_for_optimization", MINIMUM_KEYFRAME_COUNT_FOR_OPTIMIZATION, D_MINIMUM_KEYFRAME_COUNT_FOR_OPTIMIZATION);
 	ros::param::param<int>("~maximum_keyframe_count_for_optimization", MAXIMUM_KEYFRAME_COUNT_FOR_OPTIMIZATION, D_MAXIMUM_KEYFRAME_COUNT_FOR_OPTIMIZATION);
 	ros::param::param<double>("~keyframe_translation_ratio", T2ASD, D_T2ASD);
-	ros::param::param<double>("~maximum_feature_depth_VARIANCE", MAXIMUM_FEATURE_DEPTH_VARIANCE, D_MAXIMUM_FEATURE_DEPTH_VARIANCE);
+	ros::param::param<double>("~mature_depth_variance", MATURE_DEPTH_VARIANCE, D_MATURE_DEPTH_VARIANCE);
 	ros::param::param<double>("~default_point_depth", DEFAULT_POINT_DEPTH, D_DEFAULT_POINT_DEPTH);
 	ros::param::param<double>("~default_point_starting_error", DEFAULT_POINT_STARTING_VARIANCE, D_DEFAULT_POINT_STARTING_VARIANCE);
 	ros::param::param<double>("~eps_moba", EPS_MOBA, D_EPS_MOBA);
@@ -820,6 +824,7 @@ void VIO::parseROSParams()
 	ros::param::param<bool>("~use_imu", USE_IMU, D_USE_IMU);
 	ros::param::param<int>("~min_variance_box_size", MIN_VARIANCE_SIZE, D_MIN_VARIANCE_SIZE);
 	ros::param::param<int>("~max_variance_box_size", MAX_VARIANCE_SIZE, D_MAX_VARIANCE_SIZE);
+	ros::param::param<bool>("~constant_depth_update", CONSTANTLY_UPDATE_DEPTH, D_CONSTANTLY_UPDATE_DEPTH);
 
 
 }

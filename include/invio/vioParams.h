@@ -62,7 +62,10 @@
 #define D_T2ASD 0.1
 
 // the maximum error a feature can have after an optim
-#define D_MAXIMUM_FEATURE_DEPTH_VARIANCE 0.005
+#define D_MATURE_DEPTH_VARIANCE 0.2
+
+// continue to update point depth even when converged
+#define D_CONSTANTLY_UPDATE_DEPTH true
 
 // default point depth used for initialization in meters
 #define D_DEFAULT_POINT_DEPTH 0.5
@@ -167,9 +170,11 @@ int MAXIMUM_KEYFRAME_COUNT_FOR_OPTIMIZATION;
 // the minimum ratio of translation to avg scene depth
 double T2ASD;
 
-// the maximum error a feature can have after an optim
-// if the error for a point is greater than this after an optimization it is deleted (to remove possible outliers)
-double MAXIMUM_FEATURE_DEPTH_VARIANCE;
+// the variance when a point is factored into the motion estimation problem
+double MATURE_DEPTH_VARIANCE;
+
+// should we continue to update the depth of a feature if it is already in the motion estimation problem
+bool CONSTANTLY_UPDATE_DEPTH;
 
 // default point depth used for initialization in meters
 double DEFAULT_POINT_DEPTH;

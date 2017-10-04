@@ -15,6 +15,7 @@ Point::Point()
 	this->theMap = NULL;
 	this->immature = true;
 	this->guessed = false;
+	this->world_pos_reset = true; // force the world pos to be recomputed on request
 	//this->thisPoint = 0;
 
 }
@@ -26,6 +27,7 @@ Point::Point(Feature* ft){
 	this->theMap = NULL;
 	this->immature = true;
 	this->guessed = false;
+	this->world_pos_reset = true; // force the world pos to be recomputed on request
 	//this->thisPoint = 0;
 }
 
@@ -42,6 +44,8 @@ Point::Point(Feature* ft, std::list<Point>::iterator _thisPoint, std::list<Point
 	this->variance = DEFAULT_POINT_STARTING_VARIANCE;
 	this->theMap = _map;
 	this->thisPoint = _thisPoint;
+
+	this->world_pos_reset = true; // force the world pos to be recomputed on request
 }
 
 void Point::addObservation(Feature* ft)
@@ -55,7 +59,8 @@ void Point::addObservation(Feature* ft)
 	//set up the initial params if this is the first observation
 	if(_observations.size() == 0)
 	{
-		this->initial_camera_pose = ft->getParentFrame()->getPose();
+		this->initial_camera_rotation = ft->getParentFrame()->getPose().rotationMatrix();
+		this->initial_camera_translation = ft->getParentFrame()->getPose().translation();
 		this->initial_homogenous_pixel = ft->getHomogenousCoord();
 	}
 
@@ -117,7 +122,7 @@ void Point::updateDepth(double measurement, double in_variance)
 	{
 		// set the min/max to the current point
 		this->min_depth = this->max_depth = measurement;
-		this->guessed = false; // we got a measurement so it is nolonger a guessed point
+		//this->guessed = false; // we got a measurement so it is nolonger a guessed point
 	}
 	else
 	{
@@ -127,6 +132,8 @@ void Point::updateDepth(double measurement, double in_variance)
 		if(measurement < min_depth)
 			min_depth = measurement;
 	}
+
+	this->world_pos_reset = true; // set the current world pos to be recomputed
 }
 
 

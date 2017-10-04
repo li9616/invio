@@ -42,11 +42,13 @@ private:
 
 	Eigen::Vector3d initial_homogenous_pixel; // the homogenous pixel where the feature was first observed
 
-	Sophus::SE3d initial_camera_pose; // the w2c pose when the feature was first observed
+	Eigen::Matrix3d initial_camera_rotation; // the w2c rotation when the feature was first observed
+	Eigen::Vector3d initial_camera_translation; // the translation where the feature was first observed
+
+	bool world_pos_reset;
+	Eigen::Vector3d current_world_pos;
 
 	double max_depth, min_depth; // the maximum and minumum observed depths. used for outlier detection
-
-
 
 	std::deque<Feature*> _observations; // this is  a list of observations of this 3d point from different frames
 
@@ -89,7 +91,14 @@ public:
 	Eigen::Vector3d getWorldCoordinate()
 	{
 		ROS_ASSERT(!deleted);
-		return this->initial_camera_pose * (this->depth * this->initial_homogenous_pixel);
+
+		if(this->world_pos_reset) // this flag should be set if the depth has been updated
+		{
+			this->current_world_pos = this->initial_camera_rotation * (this->depth * this->initial_homogenous_pixel) + this->initial_camera_translation;
+			this->world_pos_reset = false;
+		}
+
+		return current_world_pos;
 	}
 
 	std::deque<Feature*>& getObservations(){return _observations;}
@@ -132,11 +141,12 @@ public:
 	 * the pose at first obs
 	 */
 	Sophus::SE3d getInitialCameraPose(){
-		return initial_camera_pose;
+		return Sophus::SE3d(this->initial_camera_rotation, this->initial_camera_translation);
 	}
 
 	void setDepth(double d){
 		this->depth = d;
+		this->world_pos_reset = true;
 	}
 
 	void updateDepth(double measurement, double in_variance);

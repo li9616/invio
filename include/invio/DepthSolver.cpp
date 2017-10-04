@@ -20,6 +20,13 @@ void DepthSolver::updatePointDepths(Frame& f)
 {
 	for(auto& e : f.features)
 	{
+
+		if(!CONSTANTLY_UPDATE_DEPTH && !e.getPoint()->guessed && !e.getPoint()->isImmature())
+		{
+			ROS_INFO_STREAM("skipping point for depth update");
+			continue; // skip this point for depth estimation
+		}
+
 		this->solveAndUpdatePointDepth(e.getPoint(), f.getPose_inv() * e.getPoint()->getInitialCameraPose(), e.getHomogenousCoord());
 
 		//OUTLIER REMOVAL
@@ -36,6 +43,7 @@ void DepthSolver::updatePointDepths(Frame& f)
 
 bool DepthSolver::solveAndUpdatePointDepth(Point* pt, Sophus::SE3d cf_2_rf, Eigen::Vector3d curr_ft)
 {
+
 	// first orthogonally project the current feature onto the epiline
 	Eigen::Vector3d epiline = cf_2_rf.rotationMatrix() * pt->getInitialHomogenousCoordinate();
 	//Eigen::Vector3d measured_vector = curr_ft - cf_2_rf.translation();
@@ -66,7 +74,10 @@ bool DepthSolver::solveAndUpdatePointDepth(Point* pt, Sophus::SE3d cf_2_rf, Eige
 	double depth = fabs(depth2[0]);
 
 	if(depth < MIN_POINT_Z || depth > MAX_POINT_Z)
+	{
+		ROS_INFO("depth out of bounds");
 		return false;
+	}
 
 	//evaluate the reprojection error
 	//Eigen::Vector3d projected_ref_ft = (cf_2_rf * (depth * pt->getInitialHomogenousCoordinate()));
@@ -76,18 +87,28 @@ bool DepthSolver::solveAndUpdatePointDepth(Point* pt, Sophus::SE3d cf_2_rf, Eige
 	Eigen::Vector3d t = cf_2_rf.inverse().translation();
 	Eigen::Vector3d d = depth*pt->getInitialHomogenousCoordinate();
 
+	Eigen::Vector3d t2d = d - t;
+
 	double d_norm = d.norm();
 	double t_norm = t.norm();
+	double t2d_norm = t2d.norm();
 
-	double sine_theta_d_t = std::max(d.cross(t).norm() / (d_norm*t_norm), DBL_MIN);
+	double sine_theta_d_t = std::max(d.cross(t2d).norm() / (d_norm*t2d_norm), DBL_MIN);
 
-	double variance = d_norm/(t_norm*sine_theta_d_t+DBL_MIN);
+
+
+	double variance = d_norm/(sine_theta_d_t+DBL_MIN);
 
 	ROS_INFO_STREAM("updating point with depth: " << depth << " and variance: " << variance);
 
 	pt->updateDepth(depth, variance);
 	
-	pt->setImmature(false); // once a measurement has come in this point becomes mature
+	//check if depth has converged
+	if(pt->getVariance() < MATURE_DEPTH_VARIANCE)
+	{
+		pt->setImmature(false); // once depth has converged in this point becomes mature
+		pt->guessed = false;
+	}
 
 	return true;
 
