@@ -1,4 +1,5 @@
 # invio (still under heavy development)
+Update: I am now working on a new and hopefully better method for visual odometry on the tightly coupled branch
 ## INdirect VIsual Inertial Odometry.
 Developed by Kevin Sheridan, Purdue University.
 
